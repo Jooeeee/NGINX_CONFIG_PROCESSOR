@@ -7,7 +7,6 @@ import (
 
 func main(){
 	fmt.Println("This is Test!")
-	srv,err:=processor.Scanner("./server.conf")
-	fmt.Println(srv,err)
-	err=processor.Dumper(srv,"./new.conf")
+	cmds:=[]interface{processor.ADD,}
+	processor.Processor("server.conf",)
 }

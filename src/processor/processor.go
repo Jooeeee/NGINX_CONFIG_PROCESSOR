@@ -17,29 +17,109 @@ const (
 	EMPTYLINE
 )
 
+type ACTION int
+
+const(
+	ADD ACTION=iota
+	MODIFY 
+	DELETE
+	MODLOC
+)
+
 type location struct {
 	url string
 	cmds map[string]string
 }
+
+func (loc *location) add_cmd(key,value string) {
+	loc.cmds[key]=value
+}
+
+func (loc *location) modify_cmd(key, value string) {
+	loc.add_cmd(key,value)
+}
+
+func (loc *location) del_cmd(key string) {
+	delete(loc.cmds,key)
+}
+
 
 type server struct{
 	cmds map[string]string
 	loc map[string]location
 }
 
+func (svr *server) add_cmd(key,value string) {
+	svr.cmds[key]=value
+}
+
+func (svr *server) modify_cmd(key, value string) {
+	svr.add_cmd(key,value)
+}
+
+func (svr *server) del_cmd(key string) {
+	delete(svr.cmds,key)
+}
+
+func(svr *server) modify_loc(act ACTION,loc_key,key,value string) error{
+	if _,ok:=svr.loc[loc_key];!ok{
+		return errors.New("location key doesn't exit")
+	}
+
+	loc:=svr.loc[loc_key]
+	switch act{
+	case ADD:
+		loc.add_cmd(key,value)
+	case MODIFY:
+		loc.modify_cmd(key,value)
+	case DELETE:
+		loc.del_cmd(key)
+	default:
+		return errors.New("action flag doesn't exit")
+	}
+	return nil
+}
+
 func Scanner(filename string) (server,error){
-	var srv server
+	var svr server
 	file,err:=os.OpenFile(filename,os.O_RDWR,0666)
 	if err!=nil {
-		return srv,err
+		svr.cmds=make(map[string]string)
+		svr.loc=make(map[string]location)
+		return svr,err
 	}
 	defer file.Close()
 	bufScanner:=bufio.NewScanner(file)
-	srv,err=serScanner(bufScanner)
+	svr,err=serScanner(bufScanner)
 	if err!=nil{
-		return srv,err
+		return svr,err
 	}
-	return srv,nil
+	return svr,nil
+}
+
+// action,key,value,loc_key,loc_action
+func Processor(filename string,opts... interface{}) error {
+	if len(opts)%5!=0{
+		return errors.New("options errors")
+	}
+	svr,_:=Scanner(filename)
+	for i:=0;i<len(opts);i+=4{
+		switch opts[i]{
+		case ADD:
+			svr.add_cmd(opts[i+1].(string),opts[i+2].(string))
+		case MODIFY:
+			svr.modify_cmd(opts[i+1].(string),opts[i+2].(string))
+		case DELETE:
+			svr.del_cmd(opts[i+2].(string))
+		case MODLOC:
+			err:=svr.modify_loc(opts[i+3].(ACTION),opts[i+4].(string),opts[i+1].(string),opts[i+2].(string))
+			if err!=nil{
+				return err
+			}
+		}
+	}
+	Dumper(svr,"./new.conf")
+	return nil;
 }
 
 func Dumper(svr server,filename string) error{
@@ -58,10 +138,6 @@ func Dumper(svr server,filename string) error{
 	return nil
 }
 
-// func (svr *server) clean(){
-// 	svr.cmds=make(map[string]string)
-// 	svr.loc=make(map[string]location)
-// }
 
 func serScanner(bufScanner *bufio.Scanner)( server, error){
 	var svr server
