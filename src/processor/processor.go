@@ -27,7 +27,6 @@ const(
 )
 
 type location struct {
-	url string
 	cmds map[string]string
 }
 
@@ -46,7 +45,7 @@ func (loc *location) del_cmd(key string) {
 
 type server struct{
 	cmds map[string]string
-	loc map[string]location
+	loc map[string]*location
 }
 
 func (svr *server) add_cmd(key,value string) {
@@ -63,9 +62,8 @@ func (svr *server) del_cmd(key string) {
 
 func(svr *server) modify_loc(act ACTION,loc_key,key,value string) error{
 	if _,ok:=svr.loc[loc_key];!ok{
-		return errors.New("location key doesn't exit")
+		svr.loc[loc_key]=&location{cmds:make(map[string]string)}
 	}
-
 	loc:=svr.loc[loc_key]
 	switch act{
 	case ADD:
@@ -85,7 +83,7 @@ func Scanner(filename string) (server,error){
 	file,err:=os.OpenFile(filename,os.O_RDWR,0666)
 	if err!=nil {
 		svr.cmds=make(map[string]string)
-		svr.loc=make(map[string]location)
+		svr.loc=make(map[string]*location)
 		return svr,err
 	}
 	defer file.Close()
@@ -103,7 +101,8 @@ func Processor(filename string,opts... interface{}) error {
 		return errors.New("options errors")
 	}
 	svr,_:=Scanner(filename)
-	for i:=0;i<len(opts);i+=4{
+	for i:=0;i<len(opts);i+=5{
+		fmt.Println(opts[i:i+5])
 		switch opts[i]{
 		case ADD:
 			svr.add_cmd(opts[i+1].(string),opts[i+2].(string))
@@ -112,29 +111,39 @@ func Processor(filename string,opts... interface{}) error {
 		case DELETE:
 			svr.del_cmd(opts[i+2].(string))
 		case MODLOC:
-			err:=svr.modify_loc(opts[i+3].(ACTION),opts[i+4].(string),opts[i+1].(string),opts[i+2].(string))
+			err:=svr.modify_loc(opts[i+4].(ACTION),opts[i+3].(string),opts[i+1].(string),opts[i+2].(string))
 			if err!=nil{
 				return err
 			}
 		}
 	}
-	Dumper(svr,"./new.conf")
+	fmt.Println(svr.loc["/te"])
+	err:=Dumper(svr,"./new.conf")
+	if err!=nil{
+		return err
+	}
 	return nil;
 }
 
 func Dumper(svr server,filename string) error{
-	file,err:=os.OpenFile(filename,os.O_WRONLY|os.O_CREATE,0666)
+	filetmp:=filename+"tmp"
+	file,err:=os.OpenFile(filetmp,os.O_CREATE,0666)
 	if err!=nil{
 		return err
 	}
-	defer file.Close()
+	file.Close()
 
 	bufWriter:=bufio.NewWriter(file)
 	err=serDumper(svr,bufWriter)
 	if err!=nil{
+		file.Close()
 		return err
 	}
-
+	file.Close()
+	err=os.Rename(filetmp,filename)
+	if err!=nil{
+		return err
+	}
 	return nil
 }
 
@@ -142,7 +151,7 @@ func Dumper(svr server,filename string) error{
 func serScanner(bufScanner *bufio.Scanner)( server, error){
 	var svr server
 	svr.cmds=make(map[string]string)
-	svr.loc=make(map[string]location)
+	svr.loc=make(map[string]*location)
 	for bufScanner.Scan() {
 		line:=strings.TrimSpace(bufScanner.Text())
 		pt,key,value,err:=strParser(line)
@@ -159,7 +168,7 @@ func serScanner(bufScanner *bufio.Scanner)( server, error){
 					if err!=nil{
 						return svr,err
 					}
-					svr.loc[value]=loc
+					svr.loc[value]=&loc
 				default:
 					return svr,errors.New("Error Block")
 				}
@@ -186,13 +195,11 @@ func serDumper(svr server,bufWriter *bufio.Writer) error {
 			return err
 		}
 	}
-	bufWriter.Flush()
 	for k,v:=range svr.loc{
 		err:=locDumper(k,v,bufWriter)
 		if err!=nil{
 			return err
 		}
-		bufWriter.Flush()
 	}
 	return nil
 }
@@ -222,7 +229,7 @@ func locScanner(bufScanner *bufio.Scanner) (location,error) {
 	return loc,errors.New("Error Block")
 }
 
-func locDumper(key string,loc location,bufWriter *bufio.Writer) error{
+func locDumper(key string,loc *location,bufWriter *bufio.Writer) error{
 	defer bufWriter.Flush()
 	bufWriter.WriteString("location "+key+" {\n")
 	defer bufWriter.WriteString("}\n")
