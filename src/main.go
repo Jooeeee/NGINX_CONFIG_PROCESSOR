@@ -7,5 +7,7 @@ import (
 
 func main(){
 	fmt.Println("This is Test!")
-	// processor.Scanner("./nginx.conf")
+	srv,err:=processor.Scanner("./server.conf")
+	fmt.Println(srv,err)
+	err=processor.Dumper(srv,"./new.conf")
 }
