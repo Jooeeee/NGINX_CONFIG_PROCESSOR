@@ -100,9 +100,12 @@ func Processor(filename string,opts... interface{}) error {
 	if len(opts)%5!=0{
 		return errors.New("options errors")
 	}
-	svr,_:=Scanner(filename)
+	svr,err:=Scanner(filename)
+	if err!=nil{
+		fmt.Println(err)
+		fmt.Println("Create a new one")
+	}
 	for i:=0;i<len(opts);i+=5{
-		fmt.Println(opts[i:i+5])
 		switch opts[i]{
 		case ADD:
 			svr.add_cmd(opts[i+1].(string),opts[i+2].(string))
@@ -117,8 +120,7 @@ func Processor(filename string,opts... interface{}) error {
 			}
 		}
 	}
-	fmt.Println(svr.loc["/te"])
-	err:=Dumper(svr,"./new.conf")
+	err=Dumper(svr,filename)
 	if err!=nil{
 		return err
 	}
@@ -129,9 +131,9 @@ func Dumper(svr server,filename string) error{
 	filetmp:=filename+"tmp"
 	file,err:=os.OpenFile(filetmp,os.O_CREATE,0666)
 	if err!=nil{
+		file.Close()
 		return err
 	}
-	file.Close()
 
 	bufWriter:=bufio.NewWriter(file)
 	err=serDumper(svr,bufWriter)
@@ -162,7 +164,8 @@ func serScanner(bufScanner *bufio.Scanner)( server, error){
 			case BLOCKSTART:
 				switch key{
 				case "server":
-					fmt.Println("server block start")
+					continue
+					// fmt.Println("server block start")
 				case "location":
 					loc,err:=locScanner(bufScanner)
 					if err!=nil{
