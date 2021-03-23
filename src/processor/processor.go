@@ -252,7 +252,7 @@ func serScanner(bufScanner *bufio.Scanner)( server, error){
 					}
 					svr.loc[value]=&loc
 				default:
-					return svr,errors.New("Error Block")
+					return svr,errors.New("error block")
 				}
 			case COMMAND:
 				svr.cmds[key]=value
@@ -263,7 +263,7 @@ func serScanner(bufScanner *bufio.Scanner)( server, error){
 			}
 		}
 	}
-    return svr,errors.New("Error Block")
+    return svr,errors.New("error block")
 }
 
 func serDumper(svr server,bufWriter *bufio.Writer) error {
@@ -301,14 +301,14 @@ func locScanner(bufScanner *bufio.Scanner) (location,error) {
 			case BLOCKEND:
 				return loc,nil		
 			default:
-				return loc,errors.New("Error Block")
+				return loc,errors.New("error block")
 			}
 		}
 	}
 	if err:=bufScanner.Err();err!=nil{
 		fmt.Println(err)
 	}
-	return loc,errors.New("Error Block")
+	return loc,errors.New("error block")
 }
 
 func locDumper(key string,loc *location,bufWriter *bufio.Writer) error{
