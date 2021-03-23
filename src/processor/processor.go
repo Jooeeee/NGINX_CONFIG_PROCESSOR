@@ -127,6 +127,85 @@ func Processor(filename string,opts... interface{}) error {
 	return nil;
 }
 
+func ProcessorTerm(){
+	fmt.Print("Conf Filepath to create or edit:")
+	var filename string
+	fmt.Scanln(&filename)
+	svr,err:=Scanner(filename)
+	if err!=nil{
+		fmt.Println("Load file error",err)
+		fmt.Println("Create a new one")
+	}
+	fmt.Println(`Please enter command (format: ACTION KEY VALUE LOCATION_URL LOCATION_ACTION):
+		or enter "SAVE" to save the conf and exit.
+		- ACTION: ADD,MODIFY,DELETE,LOCATION
+		- KEY: command key string
+		- VALUE: comand value string. set any no empty string for delete
+		- LOCATION_URL: location url string if ACTION is 3. Otherwise set to empty
+		- LOCATION_ACTION:ADD,MODIFY,DELETE`)
+	input:=bufio.NewReader(os.Stdin)
+	for{		
+		str,err:=input.ReadString('\n')
+		if err!=nil {
+			panic(err)
+		}
+		str=strings.TrimSpace(strings.TrimSuffix( str,"\n"))
+		opts:=strings.Fields(str)
+		if len(opts)==1 && opts[0]=="SAVE"{
+			fmt.Println(svr)
+			err=Dumper(svr,filename)
+			if err!=nil{
+				fmt.Println(err)
+			}
+			fmt.Println("Finish!")
+			break
+		}else if len(opts)==3{			
+			switch opts[0]{
+			case "ADD":
+				svr.add_cmd(opts[1],opts[2])
+			case "MODIFY":
+				svr.modify_cmd(opts[1],opts[2])
+			case "DELETE":
+				svr.del_cmd(opts[2])
+			default:
+				fmt.Println("Unknow command")
+			}
+		}else if len(opts)==5{
+			opts_switch:
+				switch opts[0]{
+				case "ADD":
+					svr.add_cmd(opts[1],opts[2])
+				case "MODIFY":
+					svr.modify_cmd(opts[1],opts[2])
+				case "DELETE":
+					svr.del_cmd(opts[2])
+				case "LOCATION":
+					var lopt ACTION
+					switch opts[4]{
+					case "ADD":
+						lopt=ADD
+					case "MODIFY":
+						lopt=MODIFY
+					case "DELETE":
+						lopt=DELETE
+					default:
+						fmt.Println("Unkown command")
+						break opts_switch
+					}					
+					err:=svr.modify_loc(lopt,opts[3],opts[1],opts[2])
+					if err!=nil{
+						fmt.Println(err)
+					}
+				default:
+					fmt.Println("Unknow command")
+					break opts_switch
+				}
+		}else{
+			fmt.Println("Unknow command")
+		}	
+	}
+}
+
 func Dumper(svr server,filename string) error{
 	filetmp:=filename+"tmp"
 	file,err:=os.OpenFile(filetmp,os.O_CREATE,0666)
